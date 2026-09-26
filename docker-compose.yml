@@ -19,7 +19,7 @@ services:
   api:
     build: ./backend
     restart: unless-stopped
-    env_file: .env
+    env_file: .env.docker
     environment:
       POSTGRES_HOST: db
     ports:

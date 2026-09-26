@@ -67,3 +67,4 @@ graph.json
 .vscode/
 .idea/
 docs/
+.env.docker
