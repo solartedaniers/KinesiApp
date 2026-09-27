@@ -59,3 +59,4 @@ services:
 
 volumes:
   kinesiapp_db_data:
+  kinesiapp_videos:
