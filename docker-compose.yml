@@ -38,6 +38,9 @@ services:
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
       SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
       SMTP_TIMEOUT_SECONDS: ${SMTP_TIMEOUT_SECONDS:-15}
+      # Vacía = webhook de resultados cerrado (ver app/core/security.py)
+      JUMP_ANALYSIS_SERVICE_API_KEY: ${JUMP_ANALYSIS_SERVICE_API_KEY:-}
+      VIDEO_CONSENT_VERSION: ${VIDEO_CONSENT_VERSION:-1}
     ports:
       - "8001:8000"  # puerto libre en el host para no chocar con otra API local
     depends_on:
