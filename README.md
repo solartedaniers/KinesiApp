@@ -38,7 +38,7 @@ La app permite al usuario grabar un breve video ejecutando un movimiento (salto 
 ## 🛠️ 2. Tecnologías utilizadas
 
 * **🟢 Backend:** Python con FastAPI (API REST), SQLAlchemy (ORM), Alembic (migraciones) sobre PostgreSQL y autenticación con JWT.
-* **📱 Frontend:** Flutter (móvil y web), Dio para cliente HTTP y `go_router` para el sistema de navegación.
+* **🌐 Frontend:** aplicación web responsive con Next.js (App Router) y TypeScript, desplegada en Vercel. Reemplaza al cliente Flutter anterior. Diseño en [`docs/design/web-frontend-architecture.md`](docs/design/web-frontend-architecture.md).
 * **🐳 Contenedores:** Docker y Docker Compose para aislar servicios en desarrollo y producción.
 * **🤖 Inteligencia artificial (En desarrollo):** MediaPipe, OpenCV (visión por computador) y API de Gemini (generación de recomendaciones en lenguaje natural).
 
@@ -48,8 +48,10 @@ La app permite al usuario grabar un breve video ejecutando un movimiento (salto 
 
 El sistema está diseñado para desplegarse en un **VPS económico (Hetzner)** mediante **Docker Compose**, garantizando simplicidad operativa frente a soluciones complejas como Kubernetes.
 
+El frontend web se despliega en **Vercel** (región `fra1`) y la base de datos en **Neon** (Postgres administrado); Alembic sigue siendo la fuente de verdad del esquema.
+
 ### 📦 Servicios planeados en contenedores:
-1. **PostgreSQL:** Base de datos relacional transaccional.
+1. **PostgreSQL:** en desarrollo local con Docker; en producción, Neon.
 2. **MinIO:** Almacenamiento de objetos compatible con S3 para gestión de videos sin depender de pasarelas de pago externas.
 3. **Redis:** Caché, rate limiting y broker de mensajes.
 4. **Celery Worker:** Procesamiento asíncrono en segundo plano para las tareas pesadas de visión artificial.
@@ -76,8 +78,12 @@ Traduce los datos numéricos de la Capa 1 a explicaciones comprensibles para el 
 * **Threadpool automático para I/O:** Las operaciones de lectura/escritura de archivos pesados (como la subida inicial de videos) se configuran deliberadamente en funciones síncronas (`def` en lugar de `async def`), permitiendo que FastAPI las derive a un **hilo secundario (Threadpool)** para liberar el event loop principal y evitar congelar peticiones HTTP concurrentes (como el inicio de sesión).
 * **Background Tasks y Workers:** Las tareas de procesamiento intensivo se delegan fuera del ciclo de respuesta web utilizando colas de fondo para garantizar una experiencia fluida al usuario.
 
-### 📱 Frontend (Flutter / Dart)
-* **Isolates (Hilos aislados de memoria):** Para evitar congelar los fotogramas de la interfaz gráfica (UI Jank), operaciones pesadas como la compresión de avatares fotográficos y corrección de orientación EXIF se ejecutan en **Isolates** independientes utilizando la función nativa `compute()`, comunicándose por paso de mensajes tal como los Web Workers en entornos web.
+### 🌐 Frontend (Next.js, en construcción)
+* **Rendering por ruta:** CSR, SSR, SSG, ISR y streaming SSR, según la pantalla.
+* **Event loop:** tareas frente a microtareas, tanto en el navegador (progreso de la subida de video) como en Node (render en streaming).
+* **Web Worker:** compresión del avatar fuera del hilo principal; en el cliente Flutter se hacía con un Isolate.
+
+El detalle está en [`docs/design/web-frontend-architecture.md`](docs/design/web-frontend-architecture.md) §3, §7 y §10.
 
 ---
 
@@ -89,9 +95,8 @@ Traduce los datos numéricos de la Capa 1 a explicaciones comprensibles para el 
 * **Inyección de dependencias:** Uso nativo de `Depends` en FastAPI para sesiones y servicios.
 
 ### 🎨 Frontend
-* **Repository Pattern con interfaces abstractas:** Permitió desacoplar las pantallas de la API usando implementaciones falsas (*fakes*) durante etapas tempranas de desarrollo.
-* **Composition Root:** Punto único de inyección (`AppScope`) al iniciar la app.
-* **Observer Pattern:** Controladores de sesión reactivos (`SessionController`) que notifican cambios de estado a la interfaz de usuario.
+* **Backend for Frontend (BFF):** Next.js guarda los tokens en cookies httpOnly y llama a la API desde el servidor.
+* **Server Components por defecto:** los Client Components solo se usan donde hacen falta APIs del navegador.
 
 ---
 
@@ -108,23 +113,18 @@ alembic upgrade head
 
 ```
 
-### 📱 Frontend (Flutter)
+### 🌐 Frontend (Next.js)
 
-**En un dispositivo físico (Android):**
-
-```bash
-cd frontend
-flutter run -d <id-dispositivo> --dart-define-from-file=env/dev.local.json
-
-```
-
-**En el navegador (Chrome):**
+Requiere Node.js 20 o superior.
 
 ```bash
 cd frontend
-flutter run -d chrome --dart-define-from-file=env/dev.local.json
-
+cp .env.example .env.local   # API_BASE_URL apunta al backend de docker-compose
+npm install
+npm run dev                  # http://localhost:3000
 ```
+
+Desde el celular: la cámara del navegador solo funciona con HTTPS, así que en la red local hay que usar `npm run dev -- --experimental-https` (ver diseño §5.2).
 
 ### 🧪 Ejecutar pruebas unitarias
 
@@ -133,9 +133,10 @@ flutter run -d chrome --dart-define-from-file=env/dev.local.json
 cd backend
 pytest
 
-# Pruebas de Frontend
+# Frontend: lint y build de producción
 cd frontend
-flutter test --dart-define-from-file=env/dev.local.json
+npm run lint
+npm run build
 
 ```
 
