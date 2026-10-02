@@ -37,6 +37,8 @@ ai-engine/.pytest_cache/
 # ---- Modelos BirdNET descargados (pesados, no van al repo) ----
 backend/models/*.tflite
 backend/models/*.pb
+# Modelo de pose de MediaPipe: se descarga (ver backend/README.md)
+backend/models/*.task
 
 # ---- Base de datos / Supabase (fase posterior) ----
 database/*.sqlite
