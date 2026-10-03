@@ -39,14 +39,9 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
       OTP_EXPIRE_MINUTES: ${OTP_EXPIRE_MINUTES:?Set OTP_EXPIRE_MINUTES in the root .env}
       OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}
-      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in the root .env}
-      SMTP_PORT: ${SMTP_PORT:?Set SMTP_PORT in the root .env}
-      SMTP_USER: ${SMTP_USER:?Set SMTP_USER in the root .env}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in the root .env}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-KinesiApp}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-      SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
-      SMTP_TIMEOUT_SECONDS: ${SMTP_TIMEOUT_SECONDS:-15}
+      # Correo con Resend. Vacía = registro y recuperación responden 503 email_delivery_failed
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       # Vacía = webhook de resultados cerrado (ver app/core/security.py)
       JUMP_ANALYSIS_SERVICE_API_KEY: ${JUMP_ANALYSIS_SERVICE_API_KEY:-}
       VIDEO_CONSENT_VERSION: ${VIDEO_CONSENT_VERSION:-1}
