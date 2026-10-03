@@ -1,10 +1,3 @@
-¡Claro que sí! He optimizado el archivo `README.md` completo: le he añadido una estructura visual mucho más limpia con emojis estratégicos, títulos destacados y bloques organizados para que luzca profesional.
-
-Además, al final incluí la sección específica que pediste sobre **patrones de diseño, hilos, event loops y tareas del event loop**, vinculándolas claramente con el contexto del proyecto.
-
-Aquí lo tienes **listo para copiar y pegar**:
-
-```markdown
 # 🚀 DetectaRiesgo (KinesiApp)
 
 <p align="center">
@@ -46,16 +39,12 @@ La app permite al usuario grabar un breve video ejecutando un movimiento (salto 
 
 ## 🚢 3. Despliegue planeado y arquitectura de contenedores
 
-El sistema está diseñado para desplegarse en un **VPS económico (Hetzner)** mediante **Docker Compose**, garantizando simplicidad operativa frente a soluciones complejas como Kubernetes.
+* **API:** Google Cloud Run (`europe-west3`), con la misma imagen de `backend/Dockerfile` (`--port 8000`).
+* **Base de datos:** Neon (Postgres administrado, `eu-central-1`), tanto en producción como en desarrollo local. Ya no se levanta Postgres en Docker. Alembic sigue siendo la fuente de verdad del esquema.
+* **Frontend:** Vercel (región `fra1`).
+* **Videos:** almacenamiento de objetos compatible con S3 de Neon (bucket `videos`, lectura pública). El backend no guarda archivos en disco.
 
-El frontend web se despliega en **Vercel** (región `fra1`) y la base de datos en **Neon** (Postgres administrado); Alembic sigue siendo la fuente de verdad del esquema.
-
-### 📦 Servicios planeados en contenedores:
-1. **PostgreSQL:** en desarrollo local con Docker; en producción, Neon.
-2. **MinIO:** Almacenamiento de objetos compatible con S3 para gestión de videos sin depender de pasarelas de pago externas.
-3. **Redis:** Caché, rate limiting y broker de mensajes.
-4. **Celery Worker:** Procesamiento asíncrono en segundo plano para las tareas pesadas de visión artificial.
-5. **Caddy / Nginx:** Proxy inverso con automatización de certificados TLS.
+El detalle está en `docs/design/video-analysis-pipeline.md` §9 y `docs/design/web-frontend-architecture.md` §2.
 
 ---
 
@@ -102,16 +91,22 @@ El detalle está en [`docs/design/web-frontend-architecture.md`](docs/design/web
 
 ## 🚀 7. Cómo correr el proyecto localmente
 
-### 🐘 Backend + Base de datos (Docker)
+### 🐘 Backend (contra Neon)
+
+La base de datos es Neon, también en local. En el `.env` de la raíz (copia de `.env.example`), `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_DB` salen del connection string **directo** de Neon (el host **sin** `-pooler`), el mismo que usa Alembic. El `-pooler` es sólo para la API en Cloud Run.
+
+> ⚠️ Si el `.env` apunta a la misma base que producción, `alembic upgrade head` y todo lo que hagas en local escribe en datos reales. Para desarrollar con datos de prueba, crea una rama en Neon y usa su host.
+
 ```bash
-# Levantar servicios de base de datos y API
-docker compose up -d --build
-
-# Aplicar migraciones de base de datos
 cd backend
-alembic upgrade head
+.venv\Scripts\activate
+$env:PGSSLMODE="require"     # bash: export PGSSLMODE=require (libpq la lee del entorno, no del .env)
 
+alembic upgrade head          # aplica migraciones en Neon
+uvicorn app.main:app --reload # http://localhost:8000
 ```
+
+Opcional, para probar la imagen Docker que va a Cloud Run: `docker compose up -d --build api` (http://localhost:8001). Usa los mismos datos de Neon del `.env`. El servicio `db` de Postgres local quedó comentado en `docker-compose.yml`.
 
 ### 🌐 Frontend (Next.js)
 
@@ -119,7 +114,7 @@ Requiere Node.js 20 o superior.
 
 ```bash
 cd frontend
-cp .env.example .env.local   # API_BASE_URL apunta al backend de docker-compose
+cp .env.example .env.local   # API_BASE_URL: puerto 8001 (docker compose) u 8000 (uvicorn)
 npm install
 npm run dev                  # http://localhost:3000
 ```
@@ -145,7 +140,3 @@ npm run build
 ## ✍️ 8. Autor
 
 * **Daniers Alexander Solarte Lima** — Ingeniería de Software, 7.° semestre, Universidad Cooperativa de Colombia.
-
-```
-
-```

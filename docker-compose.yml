@@ -1,29 +1,38 @@
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5434:5432" # puerto libre en el host para no chocar con otro Postgres local
-    volumes:
-      - kinesiapp_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+  # OBSOLETO (2026-10-03): el desarrollo local se conecta a Neon (endpoint directo, ver README).
+  # Se deja comentado por si hace falta volver a un Postgres local: al descomentarlo, el .env
+  # necesita POSTGRES_HOST=localhost y POSTGRES_PORT=5434 (y el servicio api, db y 5432).
+  # db:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #   ports:
+  #     - "5434:5432" # puerto libre en el host para no chocar con otro Postgres local
+  #   volumes:
+  #     - kinesiapp_db_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
 
+  # Opcional: sólo para probar localmente la misma imagen que va a Cloud Run
   api:
     build: ./backend
     restart: unless-stopped
     env_file: .env.docker
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      # Neon, con los mismos datos del .env raíz
+      POSTGRES_HOST: ${POSTGRES_HOST:?Set POSTGRES_HOST in the root .env}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the root .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the root .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the root .env}
+      # libpq la lee del entorno del proceso (no de Settings); Neon exige TLS
+      PGSSLMODE: ${PGSSLMODE:-require}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
@@ -41,25 +50,32 @@ services:
       # Vacía = webhook de resultados cerrado (ver app/core/security.py)
       JUMP_ANALYSIS_SERVICE_API_KEY: ${JUMP_ANALYSIS_SERVICE_API_KEY:-}
       VIDEO_CONSENT_VERSION: ${VIDEO_CONSENT_VERSION:-1}
+      # Chat (docs/design/video-analysis-pipeline.md §6). Vacía = el chat responde 503
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      # Almacenamiento S3 de Neon. Vacías = subir un video responde 503 storage_unavailable
+      AWS_ENDPOINT_URL_S3: ${AWS_ENDPOINT_URL_S3:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_VIDEOS_BUCKET: ${S3_VIDEOS_BUCKET:-videos}
+      S3_IMAGES_BUCKET: ${S3_IMAGES_BUCKET:-images}
     ports:
       - "8001:8000"  # puerto libre en el host para no chocar con otra API local
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - ./backend/app:/app/app  # hot-reload de código en desarrollo
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@kinesiapp.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
+  # OBSOLETO junto con db: Neon trae su propio editor SQL en la consola.
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@kinesiapp.com}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     - db
 
-volumes:
-  kinesiapp_db_data:
-  kinesiapp_videos:
+# volumes:
+#   kinesiapp_db_data:  # del servicio db (obsoleto)
